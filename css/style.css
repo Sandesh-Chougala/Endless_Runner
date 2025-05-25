@@ -1,0 +1,85 @@
+body {
+  font-family: 'Segoe UI', sans-serif;
+  margin: 0;
+  background: linear-gradient(to right, #0f2027, #203a43, #2c5364);
+  color: white;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100vh;
+  justify-content: center;
+  overflow: hidden;
+}
+
+main {
+  width: 100%;
+}
+
+#login-container,
+#game-container {
+  text-align: center;
+  width: 100%;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+input[type="text"] {
+  padding: 10px;
+  width: 80%;
+  font-size: 16px;
+  margin-bottom: 10px;
+  border-radius: 5px;
+  border: none;
+  outline: none;
+}
+
+button {
+  padding: 10px 20px;
+  font-size: 16px;
+  border: none;
+  background-color: #00c6ff;
+  color: white;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+button:hover {
+  background-color: #009acd;
+}
+
+#game-screen {
+  margin: 20px auto;
+  width: 100%;
+}
+
+canvas {
+  background: #eee;
+  border-radius: 10px;
+  box-shadow: 0 0 10px rgba(0,0,0,0.3);
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 0 auto;
+}
+
+#leaderboard-container {
+  margin-top: 20px;
+  background-color: rgba(255, 255, 255, 0.1);
+  padding: 15px;
+  border-radius: 10px;
+  max-width: 90%;
+}
+
+#leaderboard li {
+  list-style: none;
+  font-size: 18px;
+  padding: 4px 0;
+  text-shadow: 1px 1px 1px #000;
+}
+
+@media screen and (max-width: 600px) {
+  input[type="text"], button {
+    width: 90%;
+  }
+}
