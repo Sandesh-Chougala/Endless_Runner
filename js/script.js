@@ -1,28 +1,35 @@
+import {
+  ref,
+  push,
+  query,
+  orderByChild,
+  limitToLast,
+  get
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
 let canvas, ctx;
+const leaderboardRef = ref(window.db, "leaderboard");
 let player, obstacles = [], gameSpeed = 5, score = 0, gameOver = false, playerName = "";
 let patternCooldown = 0;
-const gravity = 0.5;
+const gravity = 0.4;
 let isPlayerImageLoaded = false;
 
-// PARALLAX BACKGROUND IMAGES
+// Background Images
 const bgLayer1 = new Image();
 const bgLayer2 = new Image();
-const bgLayer3 = new Image();
-
-bgLayer1.src = "./img/b1.png"; // farthest (slowest)
-bgLayer2.src = "./img/b2.png"; // middle
-bgLayer3.src = "./img/b3.png"; // closest (fastest)
+bgLayer1.src = "./img/b1.png";
+bgLayer2.src = "./img/b2.png";
 
 let bgX1 = 0, bgX2 = 0, bgX3 = 0;
 
 let pause = false;
 
-// Player sprite sheet
+// Player sprite
 const playerSprite = new Image();
 playerSprite.src = "./img/player-img.png";
 const spriteWidth = 40;
 const spriteHeight = 40;
-const spriteFrames = 4;  // number of frames in sprite sheet
+const spriteFrames = 1;
 let currentFrame = 0;
 let frameCount = 0;
 
@@ -66,7 +73,7 @@ function setupGame() {
   };
 
   obstacles = [];
-  gameSpeed = 5;
+  gameSpeed = 2;
   score = 0;
   gameOver = false;
   patternCooldown = 0;
@@ -78,33 +85,23 @@ function setupGame() {
 }
 
 function gameLoop() {
-  if (!isPlayerImageLoaded || !bgLayer1.complete || !bgLayer2.complete || !bgLayer3.complete) {
+  if (!isPlayerImageLoaded || !bgLayer1.complete || !bgLayer2.complete) {
     requestAnimationFrame(gameLoop);
     return;
   }
 
-  if (!pause) {
-    update();
-  }
+  if (!pause) update();
   draw();
 
-  if (!gameOver) {
-    requestAnimationFrame(gameLoop);
-  }
+  if (!gameOver) requestAnimationFrame(gameLoop);
 }
 
 function update() {
-  // Background parallax scroll
-  bgX1 -= gameSpeed * 0.2;
+  bgX1 -= gameSpeed * 0.1;
   bgX2 -= gameSpeed * 0.5;
-  bgX3 -= gameSpeed * 0.8;
-
-  // Reset background positions to loop infinitely
   if (bgX1 <= -canvas.width) bgX1 = 0;
   if (bgX2 <= -canvas.width) bgX2 = 0;
-  if (bgX3 <= -canvas.width) bgX3 = 0;
 
-  // Player jump physics
   if (player.isJumping) {
     player.y += player.velocityY;
     player.velocityY += gravity;
@@ -130,48 +127,37 @@ function update() {
   }
 
   score++;
-  if (score % 100 === 0 && gameSpeed < 80) gameSpeed += 1.5;
+  if (score % 100 === 0 && gameSpeed < 80) gameSpeed += 0.7;
 
-  // Animate player sprite frames
   frameCount++;
-  if (frameCount >= 6) {  // Change frame every 6 ticks (~10 FPS)
+  if (frameCount >= 6) {
     currentFrame = (currentFrame + 1) % spriteFrames;
     frameCount = 0;
   }
 }
 
 function draw() {
-  // Clear canvas
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // Draw parallax backgrounds (2 copies for seamless loop)
   ctx.drawImage(bgLayer1, bgX1, 0, canvas.width, canvas.height);
   ctx.drawImage(bgLayer1, bgX1 + canvas.width, 0, canvas.width, canvas.height);
-
   ctx.drawImage(bgLayer2, bgX2, 0, canvas.width, canvas.height);
   ctx.drawImage(bgLayer2, bgX2 + canvas.width, 0, canvas.width, canvas.height);
 
-  ctx.drawImage(bgLayer3, bgX3, 0, canvas.width, canvas.height);
-  ctx.drawImage(bgLayer3, bgX3 + canvas.width, 0, canvas.width, canvas.height);
-
-  // Draw animated player sprite
   ctx.drawImage(
     playerSprite,
-    currentFrame * spriteWidth, 0, spriteWidth, spriteHeight, // source rect
-    player.x, player.y, player.width, player.height           // destination rect
+    currentFrame * spriteWidth, 0, spriteWidth, spriteHeight,
+    player.x, player.y, player.width, player.height
   );
 
-  // Draw obstacles
-  ctx.fillStyle = "#e74c3c";
+  ctx.fillStyle = "red";
   obstacles.forEach(o => ctx.fillRect(o.x, o.y, o.width, o.height));
 
-  // Draw score and speed
   ctx.fillStyle = "#222";
   ctx.font = "20px Arial";
   ctx.fillText(`Score: ${score}`, 10, 25);
   ctx.fillText(`Speed: ${gameSpeed.toFixed(1)}`, 10, 45);
 
-  // Draw pause message
   if (pause) {
     ctx.fillStyle = "rgba(0,0,0,0.5)";
     ctx.fillRect(0, canvas.height / 2 - 30, canvas.width, 60);
@@ -180,7 +166,6 @@ function draw() {
     ctx.fillText("PAUSED", canvas.width / 2 - 60, canvas.height / 2 + 10);
   }
 
-  // Draw game over message
   if (gameOver) {
     ctx.fillStyle = "darkred";
     ctx.font = "20px Arial";
@@ -272,31 +257,36 @@ function handleJump() {
   }
 }
 
-// Leaderboard
-function updateLeaderboard() {
-  const leaderboard = JSON.parse(localStorage.getItem("leaderboard") || "[]");
-  leaderboard.push({ name: playerName, score });
-  leaderboard.sort((a, b) => b.score - a.score);
-  if (leaderboard.length > 5) leaderboard.length = 5;
-  localStorage.setItem("leaderboard", JSON.stringify(leaderboard));
+// 🏆 Firebase Leaderboard Functions
+async function updateLeaderboard() {
+  const leaderboardRef = ref(window.db, "leaderboard");
+  await push(leaderboardRef, {
+    name: playerName,
+    score,
+    timestamp: Date.now()
+  });
+
   updateLeaderboardDisplay();
 }
 
-function updateLeaderboardDisplay() {
-  const leaderboard = JSON.parse(localStorage.getItem("leaderboard") || "[]");
+async function updateLeaderboardDisplay() {
+  const leaderboardRef = query(ref(window.db, "leaderboard"), orderByChild("score"), limitToLast(5));
+  const snapshot = await get(leaderboardRef);
+
+  const entries = [];
+  snapshot.forEach(child => entries.push(child.val()));
+  entries.sort((a, b) => b.score - a.score);
+
   const list = document.getElementById("leaderboard");
   list.innerHTML = "";
-  leaderboard.forEach(entry => {
+  entries.forEach(entry => {
     const li = document.createElement("li");
     li.textContent = `${entry.name}: ${entry.score}`;
     list.appendChild(li);
   });
 }
 
-// Auto-fill name on load
 window.onload = () => {
   const savedName = localStorage.getItem("playerName");
-  if (savedName) {
-    document.getElementById("player-name").value = savedName;
-  }
+  if (savedName) document.getElementById("player-name").value = savedName;
 };
