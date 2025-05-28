@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Endless Runner Game | Sandesh</title>
   <link rel="stylesheet" href="./css/style.css"/>
-  
-  <!-- ✅ Firebase + DB Setup -->
+
+  <!-- Firebase Initialization -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
     import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-analytics.js";
@@ -23,8 +23,8 @@
     };
 
     const app = initializeApp(firebaseConfig);
-    const analytics = getAnalytics(app);
-    window.db = getDatabase(app); // ✅ Critical for script.js access
+    getAnalytics(app);
+    window.db = getDatabase(app);
   </script>
 </head>
 <body>
@@ -45,7 +45,6 @@
     </section>
   </main>
 
-  <!-- ✅ Use ES module script.js -->
   <script type="module" src="./js/script.js"></script>
 </body>
 </html>

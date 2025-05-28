@@ -1,28 +1,26 @@
 import {
   ref,
-  push,
+  set,
+  get,
   query,
   orderByChild,
-  limitToLast,
-  get
-} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+  limitToLast
+} from "https://www.gstatic.com/firebasejs/11.8.1/firebase-database.js";
 
 let canvas, ctx;
-const leaderboardRef = ref(window.db, "leaderboard");
 let player, obstacles = [], gameSpeed = 5, score = 0, gameOver = false, playerName = "";
 let patternCooldown = 0;
 const gravity = 0.4;
 let isPlayerImageLoaded = false;
+let pause = false;
 
-// Background Images
+// Backgrounds
 const bgLayer1 = new Image();
 const bgLayer2 = new Image();
 bgLayer1.src = "./img/b1.png";
 bgLayer2.src = "./img/b2.png";
 
-let bgX1 = 0, bgX2 = 0, bgX3 = 0;
-
-let pause = false;
+let bgX1 = 0, bgX2 = 0;
 
 // Player sprite
 const playerSprite = new Image();
@@ -78,7 +76,7 @@ function setupGame() {
   gameOver = false;
   patternCooldown = 0;
 
-  bgX1 = bgX2 = bgX3 = 0;
+  bgX1 = bgX2 = 0;
   pause = false;
 
   updateLeaderboardDisplay();
@@ -127,7 +125,7 @@ function update() {
   }
 
   score++;
-  if (score % 100 === 0 && gameSpeed < 80) gameSpeed += 0.7;
+  if (score % 100 === 0 && gameSpeed < 80) gameSpeed += 0.5;
 
   frameCount++;
   if (frameCount >= 6) {
@@ -171,11 +169,6 @@ function draw() {
     ctx.font = "20px Arial";
     ctx.fillText("GAME OVER! Tap or press Space to Restart", canvas.width / 2 - 180, canvas.height / 2);
   }
-}
-
-function checkCollision(p, o) {
-  return p.x < o.x + o.width && p.x + p.width > o.x &&
-         p.y < o.y + o.height && p.y + p.height > o.y;
 }
 
 function spawnObstaclePattern() {
@@ -257,22 +250,31 @@ function handleJump() {
   }
 }
 
-// 🏆 Firebase Leaderboard Functions
+// 🏆 Firebase Leaderboard
 async function updateLeaderboard() {
-  const leaderboardRef = ref(window.db, "leaderboard");
-  await push(leaderboardRef, {
-    name: playerName,
-    score,
-    timestamp: Date.now()
-  });
+  const db = window.db;
+  const playerKey = playerName.trim().toLowerCase();
+  const playerRef = ref(db, `leaderboard/${playerKey}`);
+
+  const snapshot = await get(playerRef);
+  const existing = snapshot.exists() ? snapshot.val().score : null;
+
+  if (existing === null || score > existing) {
+    await set(playerRef, {
+      name: playerName,
+      score,
+      timestamp: Date.now()
+    });
+  }
 
   updateLeaderboardDisplay();
 }
 
 async function updateLeaderboardDisplay() {
-  const leaderboardRef = query(ref(window.db, "leaderboard"), orderByChild("score"), limitToLast(5));
-  const snapshot = await get(leaderboardRef);
+  const db = window.db;
+  const leaderboardRef = query(ref(db, "leaderboard"), orderByChild("score"), limitToLast(5));
 
+  const snapshot = await get(leaderboardRef);
   const entries = [];
   snapshot.forEach(child => entries.push(child.val()));
   entries.sort((a, b) => b.score - a.score);
@@ -286,7 +288,8 @@ async function updateLeaderboardDisplay() {
   });
 }
 
+// Load player name from localStorage
 window.onload = () => {
-  const savedName = localStorage.getItem("playerName");
-  if (savedName) document.getElementById("player-name").value = savedName;
+  const saved = localStorage.getItem("playerName");
+  if (saved) document.getElementById("player-name").value = saved;
 };
