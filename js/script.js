@@ -19,7 +19,6 @@ const bgLayer1 = new Image();
 const bgLayer2 = new Image();
 bgLayer1.src = "./img/b1.png";
 bgLayer2.src = "./img/b2.png";
-
 let bgX1 = 0, bgX2 = 0;
 
 // Player sprite
@@ -125,7 +124,7 @@ function update() {
   }
 
   score++;
-  if (score % 100 === 0 && gameSpeed < 80) gameSpeed += 0.5;
+  if (score % 100 === 0 && gameSpeed < 80) gameSpeed += 0.7;
 
   frameCount++;
   if (frameCount >= 6) {
@@ -210,8 +209,19 @@ function createObstacle(x, width, height) {
   return { x, y: canvas.height - height, width, height };
 }
 
+// Updated rand to return integer values
 function rand(min, max) {
-  return Math.random() * (max - min) + min;
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+// Added missing collision detection function (AABB)
+function checkCollision(rect1, rect2) {
+  return (
+    rect1.x < rect2.x + rect2.width &&
+    rect1.x + rect1.width > rect2.x &&
+    rect1.y < rect2.y + rect2.height &&
+    rect1.y + rect1.height > rect2.y
+  );
 }
 
 function weightedRandom(items, weights) {
@@ -250,46 +260,59 @@ function handleJump() {
   }
 }
 
-// 🏆 Firebase Leaderboard
+// 🏆 Firebase Leaderboard Functions
 async function updateLeaderboard() {
   const db = window.db;
   const playerKey = playerName.trim().toLowerCase();
-  const playerRef = ref(db, `leaderboard/${playerKey}`);
+  const playerRef = ref(db, "leaderboard/" + playerKey);
 
-  const snapshot = await get(playerRef);
-  const existing = snapshot.exists() ? snapshot.val().score : null;
+  try {
+    const snapshot = await get(playerRef);
+    const existing = snapshot.exists() ? snapshot.val() : null;
 
-  if (existing === null || score > existing) {
-    await set(playerRef, {
-      name: playerName,
-      score,
-      timestamp: Date.now()
-    });
+    if (!existing || score > existing.score) {
+      await set(playerRef, {
+        name: playerName,
+        score: score,
+        timestamp: Date.now()
+      });
+    }
+
+    updateLeaderboardDisplay();
+  } catch (err) {
+    console.error("Error updating leaderboard:", err);
   }
-
-  updateLeaderboardDisplay();
 }
 
 async function updateLeaderboardDisplay() {
-  const db = window.db;
-  const leaderboardRef = query(ref(db, "leaderboard"), orderByChild("score"), limitToLast(5));
+  const leaderboardRef = query(ref(window.db, "leaderboard"), orderByChild("score"), limitToLast(10));
+  const leaderboardEl = document.getElementById("leaderboard");
+  leaderboardEl.innerHTML = "Loading...";
 
-  const snapshot = await get(leaderboardRef);
-  const entries = [];
-  snapshot.forEach(child => entries.push(child.val()));
-  entries.sort((a, b) => b.score - a.score);
+  try {
+    const snapshot = await get(leaderboardRef);
+    if (!snapshot.exists()) {
+      leaderboardEl.innerHTML = "<p>No scores yet.</p>";
+      return;
+    }
 
-  const list = document.getElementById("leaderboard");
-  list.innerHTML = "";
-  entries.forEach(entry => {
-    const li = document.createElement("li");
-    li.textContent = `${entry.name}: ${entry.score}`;
-    list.appendChild(li);
-  });
+    const entries = [];
+    snapshot.forEach(child => {
+      entries.push(child.val());
+    });
+    entries.sort((a, b) => b.score - a.score);
+
+    leaderboardEl.innerHTML = entries.map((entry, i) =>
+      `<p>${i + 1}. ${escapeHtml(entry.name)} - ${entry.score}</p>`
+    ).join("");
+  } catch (err) {
+    leaderboardEl.innerHTML = "<p>Error loading leaderboard.</p>";
+    console.error(err);
+  }
 }
 
-// Load player name from localStorage
-window.onload = () => {
-  const saved = localStorage.getItem("playerName");
-  if (saved) document.getElementById("player-name").value = saved;
-};
+function escapeHtml(text) {
+  const div = document.createElement("div");
+  div.innerText = text;
+  return div.innerHTML;
+}

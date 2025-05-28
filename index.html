@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Endless Runner Game | Sandesh</title>
+  <title>Endless Runner Game</title>
   <link rel="stylesheet" href="./css/style.css"/>
 
-  <!-- Firebase Initialization -->
+  <!-- Firebase Setup -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
     import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-analytics.js";
@@ -31,13 +31,13 @@
   <main>
     <section id="login-container">
       <h2>Enter Your Name</h2>
-      <input type="text" id="player-name" placeholder="Your Name" autocomplete="off" />
+      <input type="text" id="player-name" placeholder="Your Name" />
       <button id="start-game">Start Game</button>
     </section>
 
     <section id="game-container" style="display: none;">
       <h1>🏃 Endless Runner</h1>
-      <div id="game-screen"></div>
+      <div id="game-screen" style="margin: 0 auto; text-align: center;"></div>
       <div id="leaderboard-container">
         <h2>🏆 Leaderboard</h2>
         <ol id="leaderboard"></ol>
