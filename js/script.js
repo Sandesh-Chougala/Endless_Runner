@@ -13,6 +13,7 @@ let patternCooldown = 0;
 const gravity = 0.4;
 let isPlayerImageLoaded = false;
 let pause = false;
+let highestScore = 0;
 
 // Backgrounds
 const bgLayer1 = new Image();
@@ -124,7 +125,7 @@ function update() {
   }
 
   score++;
-  if (score % 100 === 0 && gameSpeed < 80) gameSpeed += 0.7;
+  if (score % 100 === 0 && gameSpeed < 800) gameSpeed += 0.7;
 
   frameCount++;
   if (frameCount >= 6) {
@@ -154,6 +155,7 @@ function draw() {
   ctx.font = "20px Arial";
   ctx.fillText(`Score: ${score}`, 10, 25);
   ctx.fillText(`Speed: ${gameSpeed.toFixed(1)}`, 10, 45);
+  ctx.fillText(`High Score: ${highestScore}`, 10, 65);
 
   if (pause) {
     ctx.fillStyle = "rgba(0,0,0,0.5)";
@@ -209,12 +211,10 @@ function createObstacle(x, width, height) {
   return { x, y: canvas.height - height, width, height };
 }
 
-// Updated rand to return integer values
 function rand(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-// Added missing collision detection function (AABB)
 function checkCollision(rect1, rect2) {
   return (
     rect1.x < rect2.x + rect2.width &&
@@ -260,7 +260,6 @@ function handleJump() {
   }
 }
 
-// 🏆 Firebase Leaderboard Functions
 async function updateLeaderboard() {
   const db = window.db;
   const playerKey = playerName.trim().toLowerCase();
@@ -276,6 +275,9 @@ async function updateLeaderboard() {
         score: score,
         timestamp: Date.now()
       });
+      highestScore = score;
+    } else {
+      highestScore = existing.score;
     }
 
     updateLeaderboardDisplay();
@@ -285,14 +287,14 @@ async function updateLeaderboard() {
 }
 
 async function updateLeaderboardDisplay() {
-  const leaderboardRef = query(ref(window.db, "leaderboard"), orderByChild("score"), limitToLast(10));
+  const leaderboardRef = query(ref(window.db, "leaderboard"), orderByChild("score"), limitToLast(5));
   const leaderboardEl = document.getElementById("leaderboard");
-  leaderboardEl.innerHTML = "Loading...";
+  leaderboardEl.innerHTML = "<li>Loading...</li>";
 
   try {
     const snapshot = await get(leaderboardRef);
     if (!snapshot.exists()) {
-      leaderboardEl.innerHTML = "<p>No scores yet.</p>";
+      leaderboardEl.innerHTML = "<li>No scores yet.</li>";
       return;
     }
 
@@ -300,13 +302,18 @@ async function updateLeaderboardDisplay() {
     snapshot.forEach(child => {
       entries.push(child.val());
     });
+
     entries.sort((a, b) => b.score - a.score);
 
     leaderboardEl.innerHTML = entries.map((entry, i) =>
-      `<p>${i + 1}. ${escapeHtml(entry.name)} - ${entry.score}</p>`
+      `<li>${i + 1}. ${escapeHtml(entry.name)} - ${entry.score}</li>`
     ).join("");
+
+    const currentPlayer = entries.find(e => e.name === playerName);
+    if (currentPlayer) highestScore = currentPlayer.score;
+
   } catch (err) {
-    leaderboardEl.innerHTML = "<p>Error loading leaderboard.</p>";
+    leaderboardEl.innerHTML = "<li>Error loading leaderboard.</li>";
     console.error(err);
   }
 }
